@@ -4,7 +4,7 @@ use platform::Platform;
 use std::path::PathBuf;
 
 use lpsettings;
-use archives;
+use archive;
 use download;
 use binary::repo;
 
@@ -32,38 +32,16 @@ fn install_raw_file(path : &PathBuf, platform : &Platform, version : &Version) -
   //! returns the path where it installed it to.
   output_debug!("Processing {}",&path.display().to_string());
 
-  match platform {
-    &Platform::Nix64 | &Platform::Nix32 => { return install_unix(&path,&platform,&version); },
-    &Platform::Win64 | &Platform::Win32 => { return install_windows(&path,&platform,&version); },
-    _ => { output_debug!("Processing not implemented for platform {}",&platform.display())}
-  }
-
-  Err("Not implemeneted")
-}
-
-fn install_windows(path : &PathBuf, platform : &Platform, version : &Version) -> Result<PathBuf,&'static str>  {
-  Err("not implemneted")
-}
-
-fn install_unix(path : &PathBuf, platform : &Platform, version : &Version) -> Result<PathBuf,&'static str>  {
   if let Ok(mut dest_path) = lpsettings::get_settings_folder() {
     dest_path.push(lpsettings::get_value_or("bin.install_path","bin"));
     dest_path.push(platform.as_short_str());
     dest_path.push(version.to_string());
-
-    //if dest_path.exists() {
-    //  output_debug!("Extract path already exist, skipping extracting.");
-    //  return(Ok(dest_path.clone()));
-    //} else {
-    //  output_debug!("Extract path doesn't exists, creating.");
-    //  create_dir_all(&dest_path);
-    //}
-
-    match archives::extract_to(path,&dest_path) {
-      Err(_) => { output_error!("Can't extract archive"); }
-      Ok(dest_path) => { output_println!("need to set permissions here"); }
+    
+    match archive::extract_to(&path,&dest_path) {
+      Err(_) => { }
+      Ok(love_root_dir) => { return Ok(love_root_dir); }
     }
   }
-
+  
   Err("not implemneted")
 }

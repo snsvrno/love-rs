@@ -13,7 +13,7 @@ extern crate download;
 extern crate platform;
 extern crate version;
 extern crate lpsettings;
-extern crate archives;
+extern crate archive;
 
 pub mod project;
 pub mod binary;

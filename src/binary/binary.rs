@@ -5,6 +5,8 @@ use platform::Platform;
 use std::path::PathBuf;
 
 use std::process::Command;
+use ansi_term::Colour::Red;
+
 
 use lpsettings;
 use binary::install;
@@ -53,11 +55,20 @@ impl Binary {
         // for slice in args { command.arg(slice); }
 
         match command.spawn() {
-          Err(_) => { return Err("Error running LOVE"); }
-          Ok(_) => {  return Ok( () ); }
+          Err(error) => { 
+            output_debug!("Error running LOVE: {}",Red.paint(error.to_string()));
+            return Err("Error running LOVE"); 
+          }
+          Ok(_) => {  
+            output_debug!("LOVE ran successfully");
+            return Ok( () ); 
+          }
         }
       }
-      None => { Err("Can't run LOVE") }
+      None => { 
+        output_debug!("Error running LOVE: {}",Red.paint("no path found"));
+        Err("Can't run LOVE") 
+      }
     }
   }
 

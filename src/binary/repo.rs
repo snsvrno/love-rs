@@ -35,7 +35,7 @@ pub fn get_link_to_version(platform : &Platform, version : &Version) -> Result<S
   //! returns the direct like to the version of love desired.
 
   match update_repo(false) {
-    Ok(_) => { output_println!("Updating repo success!"); }
+    Ok(_) => { output_println!("Updating repo: {}!",Green.paint("success")); }
     Err(error) => { output_error!("Failed to update repo: {}",error);}
   }
 
@@ -87,7 +87,7 @@ fn load_local_repo() -> Result<Repo,&'static str> {
 
           Ok(_) => { 
             match toml::from_str(&buffer) { 
-              Ok(repo) => { output_println!("Loaded local repository."); return Ok(repo); }
+              Ok(repo) => { output_println!("Local repository: {}!",Green.paint("loaded")); return Ok(repo); }
               Err(error) => { output_error!("Failed to serialize: {}",Yellow.paint(error.to_string()));  }
             }
           }
@@ -111,9 +111,9 @@ fn update_repo(forced_update : bool) -> Result<(),&'static str> {
         if let Ok(time) = dat.modified() {
           if let Ok(time_diff) = time.elapsed() {
             if time_diff.as_secs() > (60*60*24) {
-              output_println!("Updating repository...");
+              output_println!("Updating repository {}",Yellow.paint("..."));
             } else {
-              output_println!("Repository current.") ;
+              output_println!("Repository: {}!",Green.paint("current")) ;
               return Ok(()); 
             }
           }
