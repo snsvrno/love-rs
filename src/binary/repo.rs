@@ -1,6 +1,7 @@
 use version::version::Version;
 use platform::Platform;
 use std::path::PathBuf;
+use ansi_term::Colour::{Blue,Green,Yellow};
 
 use std::fs::{File,metadata};
 use std::io::prelude::*;
@@ -17,14 +18,15 @@ type Repo = HashMap<Version,HashMap<Platform,String>>;
 
 static REPO_FILE : &str = "repo.toml";
 
-static REGEX_LINUX_64 : &str = r"(nix64|x86_64).*\.[A|a]pp[I|i]mage";
-static REGEX_LINUX_32 : &str = r"(nix32|i686).*\.[A|a]pp[I|i]mage";
+static REGEX_LINUX_64 : &str = r"(nix64|x86_64).*\.tar.gz";
+static REGEX_LINUX_32 : &str = r"(nix32|i686).*\.tar.gz";
 static REGEX_WINDOWS_64 : &str = r"win64.*\.zip";
 static REGEX_WINDOWS_32 : &str = r"(win32|win-x86).*\.zip";
 static REGEX_VERSION_MATCH : &str = r"(\d+[-|.|_]\d+[-|.|_]\d+)";
 
 pub static REPOSITORY : [&str;2] = [
-  "https://api.bitbucket.org/2.0/repositories/rude/love/downloads"
+  "https://api.bitbucket.org/2.0/repositories/rude/love/downloads",
+  "https://api.bitbucket.org/2.0/repositories/snsvrno/love-linux-portable-binaries/downloads"
 ];
 
 
@@ -33,22 +35,29 @@ pub fn get_link_to_version(platform : &Platform, version : &Version) -> Result<S
   //! returns the direct like to the version of love desired.
 
   match update_repo(false) {
-    Ok(_) => { println!("Updating repo success!"); }
-    Err(error) => { println!("{}",error);}
+    Ok(_) => { output_println!("Updating repo success!"); }
+    Err(error) => { output_error!("Failed to update repo: {}",error);}
   }
 
   match load_local_repo() {
-    Err(error) => { return Err(error); }
+    Err(error) => {
+      output_error!("Could not load repo locally: {}",Yellow.paint(error)); 
+      return Err(error); 
+    }
     Ok(repo) => { 
-      println!("{:?}",&version);
+      //println!("{:?}",&version);
       match repo.get(&version) {
-        None => { return Err("Version not found"); }
+        None => { 
+          output_error!("Version {} not found",Yellow.paint(version.to_string()));  
+          return Err("Version not found"); }
         Some(ver_hash) => {
-          println!("{:?}",&platform);
+          //println!("{:?}",&platform);
           match ver_hash.get(&platform) {
-            None => { return Err("Platform not found for supplied version"); }
+            None => { 
+              output_error!("Platform {} not found for version {}",Blue.paint(platform.as_str()),Yellow.paint(version.to_string()));
+              return Err("Platform not found for supplied version"); }
             Some(link) => { 
-              println!("{}",&link);
+              output_debug!("Version link: {}",&link);
               return Ok(link.to_string()); 
             }
           }
@@ -64,22 +73,29 @@ fn load_local_repo() -> Result<Repo,&'static str> {
     path.push(REPO_FILE);
 
     match File::open(&path) {
-      Err(_) => { return Err("error"); }
+      Err(error) => {
+        output_error!("Failed to open file {}: {}",Blue.paint(path.display().to_string()),Yellow.paint(error.to_string()));   
+        return Err("error"); 
+      }
       Ok(mut file) => { 
         let mut buffer : String = String::new();
         match file.read_to_string(&mut buffer) {
-          Err(_) => { return Err("error"); }
+          Err(error) => { 
+            output_error!("Failed to read contents of file {}: {}",Blue.paint(path.display().to_string()),Yellow.paint(error.to_string()));  
+            return Err("error"); 
+          }
+
           Ok(_) => { 
-            if let Ok(repo) = toml::from_str(&buffer) { 
-              return Ok(repo);
+            match toml::from_str(&buffer) { 
+              Ok(repo) => { output_println!("Loaded local repository."); return Ok(repo); }
+              Err(error) => { output_error!("Failed to serialize: {}",Yellow.paint(error.to_string()));  }
             }
           }
         }
       }
     }
   }
-  
-  Err("Not implemeneted")
+  return Err("error");
 }
 
 fn update_repo(forced_update : bool) -> Result<(),&'static str> {
@@ -88,6 +104,24 @@ fn update_repo(forced_update : bool) -> Result<(),&'static str> {
   //! normally it will not attempt to redownload the repo information if the time frame hasn't pased
   //! which will be set by a parameter in the config called binary.repo_update_frequency and will default to 24 hours
 
+  //checks if it should update or not
+  if !forced_update { 
+    if let Ok(path) = get_repo_file() {
+      if let Ok(dat) = metadata(&path) {
+        if let Ok(time) = dat.modified() {
+          if let Ok(time_diff) = time.elapsed() {
+            if time_diff.as_secs() > (60*60*24) {
+              output_println!("Updating repository...");
+            } else {
+              output_println!("Repository current.") ;
+              return Ok(()); 
+            }
+          }
+        }
+      } 
+    }
+  }
+
   let mut repositories = repo_links();
   let mut collected_repo = HashMap::new();
 
@@ -95,31 +129,13 @@ fn update_repo(forced_update : bool) -> Result<(),&'static str> {
     match repositories.pop() {
       None => { break; }
       Some(repo_url) => {
-        println!("{}",&repo_url);
+        // println!("{}",&repo_url);
         if let Some(additional_link) = process_bitbucket(&mut collected_repo,&repo_url) { repositories.push(additional_link); }
       }
     }
   }
 
-  // if forced_update { return save_to_file(&collected_repo); }
-
-  if let Ok(path) = get_repo_file() {
-    if let Ok(dat) = metadata(&path) {
-      if let Ok(time) = dat.modified() {
-        if let Ok(time_diff) = time.elapsed() {
-          if time_diff.as_secs() > (60*60*24) {
-            println!("Updating repository...");
-            return save_to_file(&collected_repo);
-          } else {
-          println!("Repository current.") ;
-            return Ok(()); 
-          }
-        }
-      }
-    } else { return save_to_file(&collected_repo); }
-  }
-
-  Err("general error")
+  return save_to_file(&collected_repo);
 }
 
 fn get_repo_file() -> Result<PathBuf,&'static str> {
