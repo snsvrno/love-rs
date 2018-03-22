@@ -52,15 +52,14 @@ impl Binary {
     false
   }
 
-  pub fn run(&mut self) -> bool {
+  pub fn run(&mut self, package_path : Option<PathBuf>) -> bool {
     //! runs the binary
 
     if self.path.is_none() { self.install(); }
     match self.path {
       Some(ref path) => {
         let mut command = Command::new(&path);
-        // for slice in args { command.arg(slice); }
-
+        if let Some(package_path) = package_path { command.arg(package_path); }
         match command.spawn() {
           Err(error) => { output_debug!("Error running LOVE: {}",Red.paint(error.to_string())); return false; }
           Ok(_) => { output_debug!("LOVE ran successfully"); return true; }
