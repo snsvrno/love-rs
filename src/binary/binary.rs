@@ -19,6 +19,7 @@ pub struct Binary {
 
 impl Binary {
   pub fn new(platform : &Platform, version : &Version, path : Option<PathBuf>) -> Binary {
+    //! creates a new love binary object.
     
     // checking the path, will return the supplied pathbuf it exists or default directory if it already exists. 
     let new_path : Option<PathBuf> = match path {
@@ -35,19 +36,25 @@ impl Binary {
     Binary{ path: new_path, platform : platform.clone(), version : version.clone() }
   }
 
-  pub fn install(&mut self) -> Result<(),&'static str> {
-    if self.path.is_some() { return Ok( () ); }
+  pub fn install(&mut self) -> bool {
+    //! installs the binary, returns true if install successful or already exists, false if it fails.
 
-    match install::install(&self.platform,&self.version) {
-      Ok(path) => { 
-        self.path = Some(path);
-        return Ok( () ); 
-      }
-      Err(error) => { Err(error) }
+    // checks if the path exists, then assumes that it is already installed.
+    if self.path.is_some() { return true; }
+
+    // tries to install it.
+    if let Ok(path) = install::install(&self.platform,&self.version) {
+      self.path = Some(path);
+      return true; 
     }
+
+    // if we are here then it couldn't install.
+    false
   }
 
-  pub fn run(&mut self) -> Result<(),&'static str> {
+  pub fn run(&mut self) -> bool {
+    //! runs the binary
+
     if self.path.is_none() { self.install(); }
     match self.path {
       Some(ref path) => {
@@ -55,26 +62,19 @@ impl Binary {
         // for slice in args { command.arg(slice); }
 
         match command.spawn() {
-          Err(error) => { 
-            output_debug!("Error running LOVE: {}",Red.paint(error.to_string()));
-            return Err("Error running LOVE"); 
-          }
-          Ok(_) => {  
-            output_debug!("LOVE ran successfully");
-            return Ok( () ); 
-          }
+          Err(error) => { output_debug!("Error running LOVE: {}",Red.paint(error.to_string())); return false; }
+          Ok(_) => { output_debug!("LOVE ran successfully"); return true; }
         }
-      }
-      None => { 
-        output_debug!("Error running LOVE: {}",Red.paint("no path found"));
-        Err("Can't run LOVE") 
-      }
+      },
+      None => { output_debug!("Error running LOVE: {}",Red.paint("no path found")); return false; }
     }
   }
 
 }
 
 fn build_path(platform : &Platform, version : &Version) -> PathBuf {
+  //! generates the path to the binary, used for executing.
+
   let mut path = match lpsettings::get_settings_folder() {
     Ok(path) => { path },
     Err(_) => { PathBuf::from(".") }
@@ -87,7 +87,8 @@ fn build_path(platform : &Platform, version : &Version) -> PathBuf {
     path.push(version.to_string());
     path.push("love.exe"); 
   } else if platform == &Platform::Nix32 || platform == &Platform::Nix64 { 
-    path.push(format!("{}.appimage",version.to_string())); 
+    path.push(version.to_string());
+    path.push("love"); 
   } 
 
   path
