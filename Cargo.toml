@@ -13,7 +13,7 @@ ansi_term = "0.10.2"
 
 archive = { git = "https://github.com/Snsvrno/archive-lp-rs", tag = "0.1.0" }
 output = { git = "https://github.com/Snsvrno/output-lp-rs", tag = "0.1.0" }
-version = { git = "https://github.com/Snsvrno/version-lp-rs", tag = "0.1.4" }
+version = { git = "https://github.com/Snsvrno/version-lp-rs", tag = "0.1.5" }
 platform = { git = "https://github.com/Snsvrno/platform-lp-rs", tag = "0.1.4" }
 download = { git = "https://github.com/Snsvrno/download-lp-rs", tag = "0.1.2" }
 lpsettings = { git = "https://github.com/Snsvrno/lpsettings-rs", tag = "0.1.4" }
