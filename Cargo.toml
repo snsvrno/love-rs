@@ -3,6 +3,10 @@ name = "love"
 version = "0.2.0"
 authors = ["snsvrno <snsvrno@tuta.io>"]
 
+exclude = [
+    "/tests"
+]
+
 [dependencies]
 regex = "1.1"
 zip = "0.5"

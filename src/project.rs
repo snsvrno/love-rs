@@ -22,7 +22,7 @@ pub fn get_required_version<P : AsRef<Path>>(project_path : P) -> Result<Version
         false => { get_file_contents(&path,"conf.lua")? }
     };
 
-    let re_version_assignment = Regex::new(r#"version *= *["|'](\d+\.\d+\.\d+)["|']"#).unwrap();
+    let re_version_assignment = Regex::new(r#"version *= *["|'](.*)["|']"#).unwrap();
     if let Some(version) = re_version_assignment.captures(&content) {
         let captured_version = version.get(1).unwrap().as_str().to_string();
         if let Some(version) = Version::from_str(&captured_version) {
