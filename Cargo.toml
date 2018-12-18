@@ -7,6 +7,13 @@ exclude = [
     "/tests"
 ]
 
+license = "MIT"
+description = "a library for manipulating and reading love project files."
+repository = "https://github.com/snsvrno/love-rs"
+readme = "README.md"
+keywords = ["love2d","love"]
+categories = ["game-engines"]
+
 [dependencies]
 regex = "1.1"
 zip = "0.5"
