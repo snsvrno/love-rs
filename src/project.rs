@@ -11,6 +11,13 @@ use std::path::{Path,PathBuf};
 use std::fs::File;
 use std::io::{Cursor,Read};
 
+#[derive(Debug,Eq,PartialEq)]
+pub enum Project {
+    File(Version),
+    Folder(Version),
+    None
+}
+
 pub fn get_required_version<P : AsRef<Path>>(project_path : P) -> Result<Version,Error> {
     //! will look inside the `conf.lua` file for a project or `.love` file 
     //! to determine what version of love should be used
@@ -33,7 +40,47 @@ pub fn get_required_version<P : AsRef<Path>>(project_path : P) -> Result<Version
     Err(format_err!("Failed to determine the version"))
 }
 
+pub fn project_type<P : AsRef<Path>>(project_path : P) -> Result<Project,Error> {
+    let path = PathBuf::from(project_path.as_ref());
+
+    if is_love_package(&path) {
+        let content = get_file_contents_from_archive(&path,"conf.lua")?;
+        match get_version_from_file(&content) {
+            Some(version) => return Ok(Project::File(version)),
+            None => {
+                // TODO : some kind of error handling, because we found a file but no conf.lua content??
+            }
+        }
+    }
+
+    if is_love_project_folder(&path) {
+        let content = get_file_contents(&path,"conf.lua")?;
+
+        match get_version_from_file(&content) {
+            Some(version) => return Ok(Project::Folder(version)),
+            None => {
+                // TODO : some kind of error handling, because we found a file but no conf.lua content??
+            }
+        }
+    }
+
+    Ok(Project::None)
+}
+
 // PRIVATE FUNCTIONS ///////////////////////
+
+fn get_version_from_file(file_content : &str) -> Option<Version> {
+    let re_version_assignment = Regex::new(r#"version *= *["|'](.*)["|']"#).unwrap();
+
+    if let Some(version) = re_version_assignment.captures(file_content) {
+        let captured_version = version.get(1).unwrap().as_str().to_string();
+        if let Some(version) = Version::from_str(&captured_version) {
+            return Some(version);
+        }
+    }
+
+    None
+}
 
 fn is_love_package(project_path : &PathBuf) -> bool {
     //! checks if the path given is a love package or a folder
@@ -47,6 +94,17 @@ fn is_love_package(project_path : &PathBuf) -> bool {
     } else {
         false
     }
+}
+
+fn is_love_project_folder(project_path : &PathBuf) -> bool {
+    //! checks if the given folder is a love project. it determines
+    //! this if it has a 'main.lua' in the root (all that it can really 
+    //! check for)
+    
+    let mut main_lua_path = project_path.clone();
+    main_lua_path.push("main.lua");
+
+    main_lua_path.exists()
 }
 
 fn get_file_contents(project_path : &PathBuf,file_path : &str) -> Result<String,Error> {
