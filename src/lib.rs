@@ -8,3 +8,4 @@ extern crate version_lp;
 extern crate failure;
 
 pub mod project;
+mod package; pub use crate::package::{ package, PackageOptions };
