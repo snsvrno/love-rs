@@ -1,7 +1,8 @@
 [package]
 name = "love"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["snsvrno <snsvrno@tuta.io>"]
+edition = "2018"
 
 exclude = [
     "/tests"

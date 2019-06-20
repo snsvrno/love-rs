@@ -5,6 +5,6 @@ extern crate zip;
 
 extern crate platform_lp;
 extern crate version_lp;
-#[macro_use] extern crate failure;
+extern crate failure;
 
 pub mod project;

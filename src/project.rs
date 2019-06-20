@@ -2,7 +2,7 @@
 //!
 //! supports love project folders and love `.love` packages
 
-use failure::Error;
+use failure::{ Error, format_err };
 use version_lp::Version;
 use zip;
 use regex::Regex;
@@ -11,45 +11,47 @@ use std::path::{Path,PathBuf};
 use std::fs::File;
 use std::io::{Cursor,Read};
 
+
+/// enum containing all the variants of projects that exist
 #[derive(Debug,Eq,PartialEq)]
 pub enum Project {
-    File(Version),
-    Folder(Version),
-    None
+
+    FileWith(Version),
+    FolderWith(Version),
+
+    // used when we can't determine the version to use
+    File,
+    Folder
 }
 
-pub fn get_required_version<P : AsRef<Path>>(project_path : P) -> Result<Version,Error> {
-    //! will look inside the `conf.lua` file for a project or `.love` file 
-    //! to determine what version of love should be used
-    //! 
-    let path = PathBuf::from(project_path.as_ref());
+pub fn get_version<P : AsRef<Path>>(project_path : P) -> Result<Option<Version>, Error> {
+    //! returns the actual version of the love project. will return Option::None`
+    //! if no version can be determined.
     
-    let content = match is_love_package(&path) {
-        true => { get_file_contents_from_archive(&path,"conf.lua")? }
-        false => { get_file_contents(&path,"conf.lua")? }
-    };
+    let path = PathBuf::from(project_path.as_ref());
 
-    let re_version_assignment = Regex::new(r#"version *= *["|'](.*)["|']"#).unwrap();
-    if let Some(version) = re_version_assignment.captures(&content) {
-        let captured_version = version.get(1).unwrap().as_str().to_string();
-        if let Some(version) = Version::from_str(&captured_version) {
-            return Ok(version);
-        }
+    match get_type(project_path)? {
+        Some(Project::FileWith(version)) |
+        Some(Project::FolderWith(version)) => Ok(Some(version)),
+        Some(Project::File) |
+        Some(Project::Folder) => Ok(None),
+        _ => Err(format_err!("{:?} is not a love project",path)),
     }
 
-    Err(format_err!("Failed to determine the version"))
 }
 
-pub fn project_type<P : AsRef<Path>>(project_path : P) -> Result<Project,Error> {
+pub fn get_type<P : AsRef<Path>>(project_path : P) -> Result<Option<Project>,Error> {
+    //! returns the type of project, along with the version if it can be 
+    //! determined. returns `Option::None` if the given path is actually
+    //! not a love project.
+    
     let path = PathBuf::from(project_path.as_ref());
 
     if is_love_package(&path) {
         let content = get_file_contents_from_archive(&path,"conf.lua")?;
         match get_version_from_file(&content) {
-            Some(version) => return Ok(Project::File(version)),
-            None => {
-                // TODO : some kind of error handling, because we found a file but no conf.lua content??
-            }
+            Some(version) => return Ok(Some(Project::FileWith(version))),
+            None => return Ok(Some(Project::File))
         }
     }
 
@@ -57,14 +59,12 @@ pub fn project_type<P : AsRef<Path>>(project_path : P) -> Result<Project,Error> 
         let content = get_file_contents(&path,"conf.lua")?;
 
         match get_version_from_file(&content) {
-            Some(version) => return Ok(Project::Folder(version)),
-            None => {
-                // TODO : some kind of error handling, because we found a file but no conf.lua content??
-            }
+            Some(version) => return Ok(Some(Project::FolderWith(version))),
+            None => return Ok(Some(Project::Folder))
         }
     }
 
-    Ok(Project::None)
+    Ok(None)
 }
 
 // PRIVATE FUNCTIONS ///////////////////////
@@ -128,7 +128,7 @@ fn get_file_contents(project_path : &PathBuf,file_path : &str) -> Result<String,
     if buf.len() > 0 { 
         Ok(buf)
     } else {
-        Err(format_err!("Failed to read file's contents"))
+        Err(format_err!("Failed to read file's contents ({} inside of {:?}", file_path, project_path))
     }
 }
 
